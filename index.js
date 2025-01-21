@@ -45,9 +45,16 @@ const POST_ACTIVITY_MUTATION = `
 // Helper functions
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const countdown = async (minutes) => {
+    console.log(`Waiting for ${minutes} minutes before scanning again...`);
+    for (let i = minutes; i > 0; i--) {
+        console.log(`Time remaining: ${i} minute${i > 1 ? 's' : ''}`);
+        await delay(60000); // 1 minute delay
+    }
+};
+
 const fetchGraphQL = async (query, variables) => {
     try {
-        await delay(10000); // 10 seconds delay before making the request
         const response = await fetch(ANI_API_URL, {
             method: 'POST',
             headers: {
@@ -70,7 +77,6 @@ const fetchGraphQL = async (query, variables) => {
 };
 
 const postStatus = async (content) => {
-    await delay(3000); // 3 seconds delay before posting
     const data = await fetchGraphQL(POST_ACTIVITY_MUTATION, { content });
     if (data) {
         console.log('Post created successfully:', data.SaveTextActivity);
@@ -80,7 +86,6 @@ const postStatus = async (content) => {
 };
 
 const getLatestActivities = async () => {
-    await delay(6000); // 3 seconds delay before fetching activities
     const data = await fetchGraphQL(GET_LATEST_ACTIVITY_QUERY, { saikoId: SAIKO_ID });
     return data?.Page?.activities || [];
 };
@@ -98,25 +103,16 @@ const analyzeAndPost = async () => {
         const activities = await getLatestActivities();
         console.log(`Fetched activities on page 1:`, activities);
 
-        // Check for the latest text post position
         const textPostIndex = activities.findIndex((activity) => Object.keys(activity).length === 0);
         if (textPostIndex !== -1) {
             const textPosition = textPostIndex + 1;
-
-            // Log the page and text post position
             console.log(`Found text activity at position ${textPosition} on page 1`);
 
             if (textPosition >= 11) {
-                console.log(`Text post is in position ${textPosition}, getting activities from positions 1-${textPosition - 1}`);
-
-                // Get the media from positions 1 to textPosition - 1
                 const topActivities = activities.slice(0, textPosition - 1);
-
-                // Get the media with the most likes from the filtered activities
                 const maxLikes = Math.max(...topActivities.map((a) => (a.likeCount || 0)));
                 const mostLikedActivities = topActivities.filter((a) => (a.likeCount || 0) === maxLikes);
 
-                // Select a random activity from the most liked ones
                 const selectedActivity = mostLikedActivities[Math.floor(Math.random() * mostLikedActivities.length)];
 
                 const content = generateContent(CONTENT_TEMPLATE, {
@@ -134,15 +130,10 @@ const analyzeAndPost = async () => {
                 console.log(`Text post at position ${textPosition} does not meet the criteria, scanning again...`);
             }
 
-            // Use the heartbeat formula to calculate the next scan interval
-            const interval = (505 / 3) - (15 * (textPosition - 1)); // Modified to use textPosition
-            console.log(`Waiting for ${interval} minutes before scanning again...`);
+            const interval = Math.max(1, Math.floor((505 / 3) - (15 * (textPosition - 1)))); // Ensure interval is at least 1 minute
+            await countdown(interval);
 
-            // Wait for the calculated interval before scanning again
-            await new Promise((resolve) => setTimeout(resolve, interval * 60000)); // Convert minutes to ms
-
-            // Continue scanning
-            await analyzeAndPost(); // Recursively continue the scan
+            await analyzeAndPost();
         } else {
             console.log('No text activity found on page 1.');
         }
@@ -151,25 +142,21 @@ const analyzeAndPost = async () => {
     }
 };
 
-// Set up Express server to serve index.html
+// Set up Express server
 const app = express();
 const port = 3000;
-
-// Get the directory name using import.meta.url
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve the HTML file
 app.get('/', (req, res) => {
-  const imagePath = path.join(__dirname, 'index.html');
-  res.sendFile(imagePath);
+    const imagePath = path.join(__dirname, 'index.html');
+    res.sendFile(imagePath);
 });
 
 app.listen(port, () => {
-  console.log('\x1b[36m[ SERVER ]\x1b[0m', '\x1b[32m SH : http://localhost:' + port + ' ✅\x1b[0m');
+    console.log(`\x1b[36m[ SERVER ]\x1b[0m \x1b[32m SH : http://localhost:${port} ✅\x1b[0m`);
 });
 
-// Start the analysis and posting loop
 analyzeAndPost().catch((error) => {
     console.error('Error in heartbeat loop:', error.message);
 });
