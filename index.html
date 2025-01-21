@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAIKOKURAMI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #00c6ff, #0072ff); /* Blue to cyan gradient */
+            overflow: hidden;
+        }
+        .container {
+            text-align: center;
+            color: white;
+        }
+        .main-heading, .sub-heading {
+            font-size: 4rem;
+            margin: 0;
+            position: relative;
+            animation: glitch 1.5s infinite;
+        }
+        .main-heading {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        .sub-heading {
+            font-size: 2rem;
+            margin-top: 10px;
+            color: rgba(255, 255, 255, 0.8); /* Subtle white */
+        }
+        .icons {
+            margin-top: 20px;
+        }
+        .icons i {
+            color: white;
+            margin: 0 15px;
+            font-size: 2.5rem;
+            transition: color 0.3s;
+        }
+        .icons i:hover {
+            color: #00c6ff; /* Cyan hover effect */
+        }
+        @keyframes glitch {
+            0% {
+                transform: translate(0);
+                text-shadow: 1px 1px 0 #fff, -1px -1px 0 #00c6ff;
+            }
+            20% {
+                transform: translate(-5px, 5px);
+                text-shadow: 2px 2px 0 #00c6ff, -2px -2px 0 #0072ff;
+            }
+            40% {
+                transform: translate(5px, -5px);
+                text-shadow: 1px 1px 0 #0072ff, -1px -1px 0 #00c6ff;
+            }
+            60% {
+                transform: translate(-5px, -5px);
+                text-shadow: 2px 2px 0 #fff, -2px -2px 0 #00c6ff;
+            }
+            80% {
+                transform: translate(5px, 5px);
+                text-shadow: 1px 1px 0 #00c6ff, -1px -1px 0 #0072ff;
+            }
+            100% {
+                transform: translate(0);
+                text-shadow: 1px 1px 0 #fff, -1px -1px 0 #00c6ff;
+            }
+        }
+        @media (max-width: 768px) {
+            .main-heading {
+                font-size: 3rem;
+            }
+            .sub-heading {
+                font-size: 1.2rem;
+            }
+            .icons i {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-heading">SAIKOKURAMI</div>
+        <div class="sub-heading">DC Status Changer</div>
+        <div class="icons">
+            <i class="fab fa-discord" title="Discord"></i>
+            <i class="fab fa-youtube" title="YouTube"></i>
+            <i class="fab fa-github" title="GitHub"></i>
+        </div>
+    </div>
+</body>
+</html>
