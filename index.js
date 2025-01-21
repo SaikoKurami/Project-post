@@ -1,8 +1,12 @@
-import fetch from 'node-fetch';
+import express from 'express';
+import path from 'path';
 import dotenv from 'dotenv';
+import fetch from 'node-fetch';
 
 dotenv.config();
 
+const app = express();
+const port = process.env.PORT || 3000;
 const ANI_API_URL = process.env.ACCESS_API;
 const SAIKO_ID = parseInt(process.env.SAIKO_ID);
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
@@ -14,28 +18,18 @@ if (!SAIKO_ID || !ACCESS_TOKEN || !CONTENT_TEMPLATE) {
     process.exit(1);
 }
 
-const GET_LATEST_ACTIVITY_QUERY = `
-    query GetLatestActivity($saikoId: Int) {
-        Page(page: 1, perPage: 17) {
-            activities(userId: $saikoId, sort: [ID_DESC]) {
-                ... on ListActivity {
-                    siteUrl
-                    createdAt
-                    likeCount
-                }
-            }
-        }
-    }
-`;
+// Serve static files (like index.html)
+app.use(express.static(path.join(__dirname, 'public')));
 
-const POST_ACTIVITY_MUTATION = `
-    mutation ($content: String!) {
-        SaveTextActivity(text: $content) {
-            id
-            text
-        }
-    }
-`;
+// Route to serve the index.html file
+app.get('/', (req, res) => {
+    const imagePath = path.join(__dirname, 'index.html');
+    res.sendFile(imagePath);
+});
+
+app.listen(port, () => {
+    console.log('\x1b[36m[ SERVER ]\x1b[0m', '\x1b[32m SH : http://localhost:' + port + ' ✅\x1b[0m');
+});
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -63,18 +57,29 @@ const fetchGraphQL = async (query, variables) => {
     }
 };
 
-const postStatus = async (content) => {
-    await delay(3000); // 3 seconds delay before posting
-    const data = await fetchGraphQL(POST_ACTIVITY_MUTATION, { content });
-    if (data) {
-        console.log('Post created successfully:', data.SaveTextActivity);
-        return data.SaveTextActivity;
+const POST_ACTIVITY_MUTATION = `
+    mutation ($content: String!) {
+        SaveTextActivity(text: $content) {
+            id
+            text
+        }
     }
-    return null;
-};
+`;
 
 const getLatestActivities = async () => {
-    await delay(6000); // 3 seconds delay before fetching activities
+    const GET_LATEST_ACTIVITY_QUERY = `
+        query GetLatestActivity($saikoId: Int) {
+            Page(page: 1, perPage: 17) {
+                activities(userId: $saikoId, sort: [ID_DESC]) {
+                    ... on ListActivity {
+                        siteUrl
+                        createdAt
+                        likeCount
+                    }
+                }
+            }
+        }
+    `;
     const data = await fetchGraphQL(GET_LATEST_ACTIVITY_QUERY, { saikoId: SAIKO_ID });
     return data?.Page?.activities || [];
 };
@@ -92,25 +97,16 @@ const analyzeAndPost = async () => {
         const activities = await getLatestActivities();
         console.log(`Fetched activities on page 1:`, activities);
 
-        // Check for the latest text post position
         const textPostIndex = activities.findIndex((activity) => Object.keys(activity).length === 0);
         if (textPostIndex !== -1) {
             const textPosition = textPostIndex + 1;
 
-            // Log the page and text post position
             console.log(`Found text activity at position ${textPosition} on page 1`);
 
             if (textPosition >= 11) {
-                console.log(`Text post is in position ${textPosition}, getting activities from positions 1-${textPosition - 1}`);
-
-                // Get the media from positions 1 to textPosition - 1
                 const topActivities = activities.slice(0, textPosition - 1);
-
-                // Get the media with the most likes from the filtered activities
                 const maxLikes = Math.max(...topActivities.map((a) => (a.likeCount || 0)));
                 const mostLikedActivities = topActivities.filter((a) => (a.likeCount || 0) === maxLikes);
-
-                // Select a random activity from the most liked ones
                 const selectedActivity = mostLikedActivities[Math.floor(Math.random() * mostLikedActivities.length)];
 
                 const content = generateContent(CONTENT_TEMPLATE, {
@@ -118,7 +114,7 @@ const analyzeAndPost = async () => {
                     CREATED_AT: selectedActivity.createdAt,
                 });
 
-                const result = await postStatus(content);
+                const result = await fetchGraphQL(POST_ACTIVITY_MUTATION, { content });
                 if (result) {
                     console.log('TextActivity posted successfully.');
                 } else {
@@ -128,14 +124,11 @@ const analyzeAndPost = async () => {
                 console.log(`Text post at position ${textPosition} does not meet the criteria, scanning again...`);
             }
 
-            // Use the heartbeat formula to calculate the next scan interval
-            const interval = (505 / 3) - (15 * (textPosition - 1)); // Modified to use textPosition
+            const interval = (505 / 3) - (15 * (textPosition - 1));
             console.log(`Waiting for ${interval} minutes before scanning again...`);
 
-            // Wait for the calculated interval before scanning again
-            await new Promise((resolve) => setTimeout(resolve, interval * 60000)); // Convert minutes to ms
+            await new Promise((resolve) => setTimeout(resolve, interval * 60000));
 
-            // Continue scanning
             await analyzeAndPost(); // Recursively continue the scan
         } else {
             console.log('No text activity found on page 1.');
