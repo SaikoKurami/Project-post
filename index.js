@@ -2,7 +2,9 @@ import express from 'express';
 import path from 'path';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
+// Load environment variables
 dotenv.config();
 
 const ANI_API_URL = process.env.ACCESS_API;
@@ -16,6 +18,7 @@ if (!SAIKO_ID || !ACCESS_TOKEN || !CONTENT_TEMPLATE) {
     process.exit(1);
 }
 
+// GraphQL queries and mutations
 const GET_LATEST_ACTIVITY_QUERY = `
     query GetLatestActivity($saikoId: Int) {
         Page(page: 1, perPage: 17) {
@@ -39,6 +42,7 @@ const POST_ACTIVITY_MUTATION = `
     }
 `;
 
+// Helper functions
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const fetchGraphQL = async (query, variables) => {
@@ -150,6 +154,10 @@ const analyzeAndPost = async () => {
 // Set up Express server to serve index.html
 const app = express();
 const port = 3000;
+
+// Get the directory name using import.meta.url
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Serve the HTML file
 app.get('/', (req, res) => {
