@@ -11,6 +11,7 @@ const ANI_API_URL = process.env.ACCESS_API;
 const SAIKO_ID = parseInt(process.env.SAIKO_ID);
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const CONTENT_TEMPLATE = process.env.CONTENT_TEMPLATE;
+const COMMENT_TEMPLATE = process.env.COMMENT_TEMPLATE;
 const SCAN_INTERVAL = parseInt(process.env.SCAN_INTERVAL || 600); // Interval in seconds
 
 if (!SAIKO_ID || !ACCESS_TOKEN || !CONTENT_TEMPLATE) {
@@ -36,6 +37,15 @@ const GET_LATEST_ACTIVITY_QUERY = `
 const POST_ACTIVITY_MUTATION = `
     mutation ($content: String!) {
         SaveTextActivity(text: $content) {
+            id
+            text
+        }
+    }
+`;
+
+const POST_COMMENT_MUTATION = `
+    mutation ($activityId: Int!, $comment: String!) {
+        SaveActivityReply(activityId: $activityId, text: $comment) {
             id
             text
         }
@@ -85,6 +95,15 @@ const postStatus = async (content) => {
     return null;
 };
 
+const postComment = async (activityId, commentContent) => {
+    const data = await fetchGraphQL(POST_COMMENT_MUTATION, { activityId, comment: commentContent });
+    if (data) {
+        console.log('Comment posted successfully:', data.SaveActivityReply);
+        return data.SaveActivityReply;
+    }
+    return null;
+};
+
 const getLatestActivities = async () => {
     const data = await fetchGraphQL(GET_LATEST_ACTIVITY_QUERY, { saikoId: SAIKO_ID });
     return data?.Page?.activities || [];
@@ -106,7 +125,7 @@ const analyzeAndPost = async () => {
         const textPostIndex = activities.findIndex((activity) => Object.keys(activity).length === 0);
         if (textPostIndex !== -1) {
             const textPosition = textPostIndex + 1;
-            console.log(`Found text activity at position ${textPosition} on page 1`);
+            console.log(`Found text activity at position ${textPosition}`);
 
             if (textPosition >= 11) {
                 const topActivities = activities.slice(0, textPosition - 1);
@@ -123,19 +142,26 @@ const analyzeAndPost = async () => {
                 const result = await postStatus(content);
                 if (result) {
                     console.log('TextActivity posted successfully.');
-                } else {
-                    console.error('Failed to post TextActivity.');
-                }
+            // Wait for 10 seconds before posting the comment
+            await delay(10000);
+
+            // Post a follow-up comment
+            const commentContent = COMMENT_TEMPLATE;
+            await postComment(result.id, commentContent);
+
+            } else {
+                console.error('Failed to post TextActivity.');
+            }
             } else {
                 console.log(`Text post at position ${textPosition} does not meet the criteria, scanning again...`);
             }
 
-            const interval = Math.max(1, Math.floor((505 / 3) - (15 * (textPosition - 1)))); // Ensure interval is at least 1 minute
+            const interval = Math.max(1, Math.floor((230) - (20 * (textPosition - 1)))); // Ensure interval is at least 1 minute
             await countdown(interval);
 
             await analyzeAndPost();
         } else {
-            console.log('No text activity found on page 1.');
+            console.log('No text activity found');
         }
     } catch (error) {
         console.error('Error in analyzeAndPost:', error.message);
