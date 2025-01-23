@@ -63,7 +63,7 @@ const countdown = async (minutes) => {
     }
 };
 
-const fetchGraphQL = async (query, variables) => {
+const fetchGraphQL = async (query, variables, retries = 3, backoff = 3000) => {
     try {
         const response = await fetch(ANI_API_URL, {
             method: 'POST',
@@ -81,8 +81,14 @@ const fetchGraphQL = async (query, variables) => {
         }
         return result.data;
     } catch (error) {
-        console.error('Network Error:', error.message);
-        return null;
+        if (retries > 0) {
+            console.warn(`Fetch error: ${error.message}. Retrying in ${backoff / 1000} seconds...`);
+            await delay(backoff);
+            return fetchGraphQL(query, variables, retries - 1, backoff * 2);
+        } else {
+            console.error('Network Error:', error.message);
+            return null;
+        }
     }
 };
 
