@@ -63,7 +63,7 @@ const countdown = async (minutes) => {
     }
 };
 
-const fetchGraphQL = async (query, variables, retries = 3, backoff = 3000) => {
+const fetchGraphQL = async (query, variables) => {
     try {
         const response = await fetch(ANI_API_URL, {
             method: 'POST',
@@ -81,14 +81,8 @@ const fetchGraphQL = async (query, variables, retries = 3, backoff = 3000) => {
         }
         return result.data;
     } catch (error) {
-        if (retries > 0) {
-            console.warn(`Fetch error: ${error.message}. Retrying in ${backoff / 1000} seconds...`);
-            await delay(backoff);
-            return fetchGraphQL(query, variables, retries - 1, backoff * 2);
-        } else {
-            console.error('Network Error:', error.message);
-            return null;
-        }
+        console.error('Network Error:', error.message);
+        return null;
     }
 };
 
@@ -126,6 +120,13 @@ const generateContent = (template, variables) => {
 const analyzeAndPost = async () => {
     try {
         const activities = await getLatestActivities();
+        if (!activities.length) {
+            console.log('No activities found or too many requests. Retrying...');
+            await countdown(10); // Wait for 10 minutes before retrying
+            await analyzeAndPost();
+            return;
+        }
+
         console.log(`Fetched activities on page 1:`, activities);
 
         const textPostIndex = activities.findIndex((activity) => Object.keys(activity).length === 0);
@@ -148,16 +149,16 @@ const analyzeAndPost = async () => {
                 const result = await postStatus(content);
                 if (result) {
                     console.log('TextActivity posted successfully.');
-            // Wait for 10 seconds before posting the comment
-            await delay(10000);
+                    // Wait for 10 seconds before posting the comment
+                    await delay(10000);
 
-            // Post a follow-up comment
-            const commentContent = COMMENT_TEMPLATE;
-            await postComment(result.id, commentContent);
+                    // Post a follow-up comment
+                    const commentContent = COMMENT_TEMPLATE;
+                    await postComment(result.id, commentContent);
 
-            } else {
-                console.error('Failed to post TextActivity.');
-            }
+                } else {
+                    console.error('Failed to post TextActivity.');
+                }
             } else {
                 console.log(`Text post at position ${textPosition} does not meet the criteria, scanning again...`);
             }
@@ -171,6 +172,8 @@ const analyzeAndPost = async () => {
         }
     } catch (error) {
         console.error('Error in analyzeAndPost:', error.message);
+        await countdown(10); // Wait for 10 minutes before retrying in case of error
+        await analyzeAndPost();
     }
 };
 
